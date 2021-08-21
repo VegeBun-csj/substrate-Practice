@@ -270,9 +270,13 @@ impl pallet_template::Config for Runtime {
 	type Event = Event;
 }
 
+parameter_types! {
+    pub const MaxAddend: usize = 4;
+}
 
 impl pallet_poe::Config for Runtime{
 	type Event = Event;
+	type MaxAddend = MaxAddend;
 }
 
 // Create the runtime by composing the FRAME pallets that were previously configured.

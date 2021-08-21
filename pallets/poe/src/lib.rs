@@ -1,6 +1,12 @@
 // 编译的时候使用std，如果不是std就是用no_std进行编译
 #![cfg_attr(not(feature = "std"), no_std)]
 
+// 测试标签，表明只有在测试测试的时候会调用这些模块
+#[cfg(test)]
+mod mock;
+#[cfg(test)]
+mod tests;
+
 pub use pallet::*;
 
 #[frame_support::pallet]
@@ -14,6 +20,8 @@ pub mod pallet {
 	pub trait Config: frame_system::Config {
 		// 关联类型Event
 		type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
+		// 设置长度上限（这里主要是为了设置存证内容的hash）,因为链上的存证内容不能无限大，否则容易受到攻击
+		type MaxAddend: Get<usize>;
 	}
 
 	#[pallet::pallet]
@@ -45,6 +53,7 @@ pub mod pallet {
 		ProofAlreadyExist,
 		ClaimNotExist,
 		NotClaimOwner,
+		ClaimOutLength,
 	}
 
 	#[pallet::hooks]
@@ -60,6 +69,10 @@ pub mod pallet {
 		) -> DispatchResultWithPostInfo {
 			// 校验并获取发送方的AccountId
 			let sender = ensure_signed(origin)?;
+
+			// 限制claim的长度
+			ensure!(claim.len().le(&(T::MaxAddend::get())), Error::<T>::ClaimOutLength);
+
 			// 判断当前的存储单元中，是否已经存在了这样的存证记录，如果存在了，那就报已经存在的错误
 			ensure!(!Proofs::<T>::contains_key(&claim), Error::<T>::ProofAlreadyExist);
 
