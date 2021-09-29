@@ -2,6 +2,7 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
 // 测试标签，表明只有在测试测试的时候会调用这些模块
+// 可以参考：https://github.com/jsrzx/substrate-node-template/blob/v3.0.0+1_jasonruan_poe/README.md
 #[cfg(test)]
 mod mock;
 #[cfg(test)]

@@ -144,6 +144,11 @@ default-features = false
 path = '../pallets/poe'
 version = '3.0.0'
 
+[dependencies.pallet-kitties]
+default-features = false
+path = '../pallets/kitties'
+version = '3.0.0'
+
 
 [dependencies.pallet-timestamp]
 default-features = false
