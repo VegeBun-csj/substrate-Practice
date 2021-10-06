@@ -88,7 +88,7 @@ pub mod pallet {
 	#[pallet::getter(fn kitties)]
 	pub type Kitties<T: Config> =
 		StorageMap<_, Blake2_128Concat, T::KittyIndex, Option<Kitty>, ValueQuery>;
-
+	
 	/// 3. 每个kitty的所有者owner
 	/// kittyIndex作为key，AccountId作为value
 	#[pallet::storage]
