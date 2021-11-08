@@ -1,0 +1,28 @@
+[package]
+name = "pallet-kitties-primitives"
+version = "3.0.0"
+edition = "2018"
+description = "A crate that hosts a common definitions that are relevant for the pallet-kitties."
+readme = "README.md"
+
+[package.metadata.docs.rs]
+targets = ["x86_64-unknown-linux-gnu"]
+
+[dependencies]
+bitflags = "1.0"
+codec = { package = "parity-scale-codec", version = "2", default-features = false, features = ["derive"] }
+serde = { version = "1", features = ["derive"], optional = true }
+
+# Substrate Dependencies (This crate should not rely on frame)
+# sp-core = { version = "3.0.0",  default-features = false }
+sp-std = { version = "3.0.0", git = 'https://github.com/paritytech/substrate.git', tag= "monthly-2021-07", default-features = false}
+sp-runtime = { version = "3.0.0", git = 'https://github.com/paritytech/substrate.git', tag= "monthly-2021-07", default-features = false}
+
+[features]
+default = ["std"]
+std = [
+	"codec/std",
+	"sp-runtime/std",
+	"sp-std/std",
+	"serde",
+]

@@ -138,18 +138,23 @@ fn remote_keystore(_url: &String) -> Result<Arc<LocalKeystore>, &'static str> {
 }
 
 /// Builds a new service for a full client.
+/// 为全节点客户端构建一个新的service
 pub fn new_full(mut config: Configuration) -> Result<TaskManager, ServiceError> {
+	// >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>><<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+	// 从new_partial(&config)返回一堆基础组建，接下来就是对这些基础组建进行组装
 	let sc_service::PartialComponents {
-		client,
-		backend,
-		mut task_manager,
-		import_queue,
+		client,			//返回一个client实例
+		backend,		//数据库
+		mut task_manager,	// rust的异步系统
+		import_queue,					// p2p区块
 		mut keystore_container,
-		select_chain,
-		transaction_pool,
+		select_chain,					//链选择器
+		transaction_pool,	//交易池
 		other: (block_import, grandpa_link, mut telemetry),
 	} = new_partial(&config)?;
+	// >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>><<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
+	// keystore
 	if let Some(url) = &config.keystore_remote {
 		match remote_keystore(url) {
 			Ok(k) => keystore_container.set_remote_keystore(k),
@@ -162,7 +167,7 @@ pub fn new_full(mut config: Configuration) -> Result<TaskManager, ServiceError> 
 	}
 
 	config.network.extra_sets.push(sc_finality_grandpa::grandpa_peers_set_config());
-
+	// build_network启动网络模块
 	let (network, system_rpc_tx, network_starter) =
 		sc_service::build_network(sc_service::BuildNetworkParams {
 			config: &config,
@@ -174,6 +179,7 @@ pub fn new_full(mut config: Configuration) -> Result<TaskManager, ServiceError> 
 			block_announce_validator_builder: None,
 		})?;
 
+	// offchain模块
 	if config.offchain_worker.enabled {
 		sc_service::build_offchain_workers(
 			&config,
@@ -190,6 +196,7 @@ pub fn new_full(mut config: Configuration) -> Result<TaskManager, ServiceError> 
 	let enable_grandpa = !config.disable_grandpa;
 	let prometheus_registry = config.prometheus_registry().cloned();
 
+	//>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>构建RPC模块<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 	let rpc_extensions_builder = {
 		let client = client.clone();
 		let pool = transaction_pool.clone();
@@ -217,6 +224,8 @@ pub fn new_full(mut config: Configuration) -> Result<TaskManager, ServiceError> 
 		telemetry: telemetry.as_mut(),
 	})?;
 
+
+	//>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>启动共识模块<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 	if role.is_authority() {
 		let proposer_factory = sc_basic_authorship::ProposerFactory::new(
 			task_manager.spawn_handle(),
@@ -228,10 +237,10 @@ pub fn new_full(mut config: Configuration) -> Result<TaskManager, ServiceError> 
 
 		let can_author_with =
 			sp_consensus::CanAuthorWithNativeVersion::new(client.executor().clone());
-
+		// aura共识
 		let slot_duration = sc_consensus_aura::slot_duration(&*client)?;
 		let raw_slot_duration = slot_duration.slot_duration();
-
+		// 组装aura
 		let aura = sc_consensus_aura::start_aura::<AuraPair, _, _, _, _, _, _, _, _, _, _, _>(
 			StartAuraParams {
 				slot_duration,
@@ -271,7 +280,7 @@ pub fn new_full(mut config: Configuration) -> Result<TaskManager, ServiceError> 
 	// need a keystore, regardless of which protocol we use below.
 	let keystore =
 		if role.is_authority() { Some(keystore_container.sync_keystore()) } else { None };
-
+	// grandpa共识，用于区块的finalize
 	let grandpa_config = sc_finality_grandpa::Config {
 		// FIXME #1578 make this available through chainspec
 		gossip_duration: Duration::from_millis(333),
@@ -308,11 +317,14 @@ pub fn new_full(mut config: Configuration) -> Result<TaskManager, ServiceError> 
 		);
 	}
 
+	// >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>><<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+	// 最后启动网络
 	network_starter.start_network();
 	Ok(task_manager)
 }
 
 /// Builds a new service for a light client.
+/// 为轻节点客户端构建一个新的service
 pub fn new_light(mut config: Configuration) -> Result<TaskManager, ServiceError> {
 	let telemetry = config
 		.telemetry_endpoints

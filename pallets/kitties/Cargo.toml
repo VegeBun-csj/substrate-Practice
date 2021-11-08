@@ -43,6 +43,10 @@ std = [
     'sp-runtime/std',
     'pallet-balances/std',
     'pallet-randomness-collective-flip/std',
+    # 'pallet-kitties-primitives/std',
+    'sp-std/std',
+    # 'sp_core/std',
+    "serde",
 ]
 try-runtime = ['frame-support/try-runtime']
 [dependencies.codec]
@@ -50,6 +54,12 @@ default-features = false
 features = ['derive']
 package = 'parity-scale-codec'
 version = '2.0.0'
+
+[dependencies.serde]
+features = ['derive']
+version = "1"
+optional = true
+
 
 [dependencies.frame-benchmarking]
 default-features = false
@@ -93,3 +103,13 @@ default-features = false
 git = 'https://github.com/paritytech/substrate.git'
 tag = 'monthly-2021-07'
 version = '3.0.0'
+
+[dependencies.sp-std]
+default-features = false
+git = 'https://github.com/paritytech/substrate.git'
+tag = 'monthly-2021-07'
+version = '3.0.0'
+
+[dependencies.log]
+default-features = false
+version = "0.4.14"

@@ -131,6 +131,7 @@ pub fn run() -> sc_cli::Result<()> {
 			runner.run_node_until_exit(|config| async move {
 				match config.role {
 					Role::Light => service::new_light(config),
+					// new_full创建一个service
 					_ => service::new_full(config),
 				}
 				.map_err(sc_cli::Error::Service)

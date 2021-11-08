@@ -347,6 +347,7 @@ pub type Executive = frame_executive::Executive<
 	AllPallets,
 >;
 
+/// 将各个rpc api组装到runtime
 impl_runtime_apis! {
 	impl sp_api::Core<Block> for Runtime {
 		fn version() -> RuntimeVersion {
@@ -473,6 +474,13 @@ impl_runtime_apis! {
 		}
 	}
 
+	//添加kitties的runtime api
+	impl pallet_kitties_rpc_runtime_api::KittiesApi<Block, AccountId, Balance> for Runtime{
+		fn query_kittiy_market_info() -> pallet_kitties::GetKittyMarketResult<AccountId, Balance>{
+			KittiesModule::query_kittiy_market_info()
+		}
+	}
+
 	#[cfg(feature = "runtime-benchmarks")]
 	impl frame_benchmarking::Benchmark<Block> for Runtime {
 		fn dispatch_benchmark(
@@ -502,6 +510,7 @@ impl_runtime_apis! {
 			add_benchmark!(params, batches, frame_system, SystemBench::<Runtime>);
 			add_benchmark!(params, batches, pallet_balances, Balances);
 			add_benchmark!(params, batches, pallet_timestamp, Timestamp);
+			// 添加pallet template的benchmark
 			add_benchmark!(params, batches, pallet_template, TemplateModule);
 
 			if batches.is_empty() { return Err("Benchmark not found for this pallet.".into()) }

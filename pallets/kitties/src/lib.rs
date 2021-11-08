@@ -1,5 +1,7 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
+mod rpc;
+
 #[cfg(test)]
 mod mock;
 #[cfg(test)]
@@ -20,12 +22,16 @@ pub mod pallet {
 		Currency, ExistenceRequirement::KeepAlive, Randomness, ReservableCurrency,
 	};
 	use frame_system::pallet_prelude::*;
-	use sp_runtime::traits::{AtLeast32BitUnsigned, Bounded, Zero, One};
+	use sp_runtime::traits::{AtLeast32BitUnsigned, Bounded, One, Zero, SaturatedConversion};
+	use sp_std::{prelude::*, vec::Vec};
+/* 	use sp_io::logging::{log};
+	use sp_core::LogLevel; */
+	pub use crate::rpc::{GetKittyMarketResult, KittyInfoById, KittyInfo, MarketKittyqueryError};
 
 	pub type BalanceOf<T> =
 		<<T as Config>::Currency as Currency<<T as frame_system::Config>::AccountId>>::Balance;
 
-	/// 首先定义存储的数据类型
+	/// 首先定义存储的数据ContractAccessError类型
 	/// 1.每一个kitty都需要存放数据，那么这个数据就可以用一个vec存放，为了存储方便，定义一个16字节的u8类型
 	/// 这样这些数据就可以通过256位的hash函数来获取
 	#[derive(Encode, Decode)]
@@ -88,7 +94,7 @@ pub mod pallet {
 	#[pallet::getter(fn kitties)]
 	pub type Kitties<T: Config> =
 		StorageMap<_, Blake2_128Concat, T::KittyIndex, Option<Kitty>, ValueQuery>;
-	
+
 	/// 3. 每个kitty的所有者owner
 	/// kittyIndex作为key，AccountId作为value
 	#[pallet::storage]
@@ -103,6 +109,12 @@ pub mod pallet {
 	#[pallet::getter(fn kittymarket)]
 	pub type KittyMarket<T: Config> =
 		StorageMap<_, Blake2_128Concat, T::KittyIndex, BalanceOf<T>, ValueQuery>;
+
+	/// 5.定义一个存储，能够通过指定的账户查询到其拥有的所有kittyId
+	#[pallet::storage]
+	#[pallet::getter(fn kittybabies)]
+	pub type KittyBabies<T: Config> =
+		StorageMap<_, Blake2_128Concat, T::AccountId, Vec<T::KittyIndex>, ValueQuery>;
 
 	#[pallet::error]
 	pub enum Error<T> {
@@ -119,8 +131,7 @@ pub mod pallet {
 	}
 
 	#[pallet::call]
-	impl<T: Config> Pallet<T>
-	{
+	impl<T: Config> Pallet<T> {
 		/// 创建kitty
 		#[pallet::weight(0)]
 		pub fn create(origin: OriginFor<T>) -> DispatchResult {
@@ -133,7 +144,7 @@ pub mod pallet {
 
 			// 1. kitty的id
 			// kitties_count()是获取的下一个kitty的id,它是用于获取上面KittiesCount存储项的getter函数
-			let kitty_id = match Self::kitties_count() {
+			let kitty_id: <T as Config>::KittyIndex = match Self::kitties_count() {
 				Some(id) => {
 					// 如果当前kittyId的id已经超过了KittyIndex的最大值(u32最大值)，说明就无法再创建新的Index，就报溢出错误
 					ensure!(id != T::KittyIndex::max_value(), Error::<T>::KittiesCountOverflow);
@@ -152,6 +163,9 @@ pub mod pallet {
 			Kitties::<T>::insert(kitty_id, Some(Kitty(dna)));
 			Owner::<T>::insert(kitty_id, Some(who.clone()));
 			KittiesCount::<T>::put(kitty_id + One::one()); // 更新下一个kitty的index，即+1
+
+			// 更新账户拥有的kittyId列表
+			Self::push_kitty_babies_list(&who.clone(), kitty_id);
 
 			// 4. 抛出event(已经创建了新的kitty)
 			Self::deposit_event(Event::KittyCreate(who, kitty_id));
@@ -173,7 +187,7 @@ pub mod pallet {
 			ensure!(Some(who.clone()) == Owner::<T>::get(kitty_id), Error::<T>::NotOwner);
 
 			// 新的拥有者需要质押一定的金额
-			T::Currency::reserve(&new_owner, T::ReservationFee::get())
+			T::Currency::reserve(&new_owner.clone(), T::ReservationFee::get())
 				.map_err(|_| Error::<T>::NoSufficientBalance)?;
 
 			// 插入新的Owner
@@ -181,6 +195,12 @@ pub mod pallet {
 
 			// 更新新的owner之后,退回原拥有者的质押金额
 			T::Currency::unreserve(&who, T::ReservationFee::get());
+
+			// 将kitty_id从old owner的kittyId列表中移除
+			Self::remove_kittyid_from_kitty_babies_list(&who.clone(), kitty_id.clone());
+
+			// 更新新owner的kittyId列表
+			Self::push_kitty_babies_list(&new_owner.clone(), kitty_id);
 
 			Self::deposit_event(Event::KittyTransfer(who, new_owner, kitty_id));
 			Ok(())
@@ -234,6 +254,8 @@ pub mod pallet {
 			Owner::<T>::insert(child_kitty_id, Some(who.clone()));
 			KittiesCount::<T>::put(child_kitty_id + One::one());
 
+			// 更新当前用户的kittyId列表
+			Self::push_kitty_babies_list(&who.clone(), child_kitty_id);
 			// 创建成功事件
 			Self::deposit_event(Event::KittyCreate(who, child_kitty_id));
 
@@ -285,6 +307,12 @@ pub mod pallet {
 			// 并将kitty给新的owner
 			<Owner<T>>::insert(kitty_id, Some(new_owner.clone()));
 
+			// 将kitty_id从old owner的kittyId列表中移除
+			Self::remove_kittyid_from_kitty_babies_list(&old_owner.clone(), kitty_id.clone());
+
+			// 将买的kittyId追加到新的owner的kittyId列表中
+			Self::push_kitty_babies_list(&new_owner.clone(),kitty_id);
+
 			// 将该kitty_id的原有账户释放质押金额
 			T::Currency::unreserve(&old_owner, T::ReservationFee::get());
 
@@ -297,7 +325,8 @@ pub mod pallet {
 		}
 	}
 
-	impl<T: Config> Pallet<T> {
+	impl<T: Config> Pallet<T>
+	{
 		/// 获取随机数
 		fn random_value(sender: &T::AccountId) -> [u8; 16] {
 			let payload = (
@@ -312,21 +341,106 @@ pub mod pallet {
 			payload.using_encoded(blake2_128)
 		}
 
-		// 生成需要创建的kitty的id
-		// fn generate_kitty_id() -> u32 {
-		//     //1. kitty的id
-		// 	// kitties_count()是获取的下一个kitty的id,它是用于获取上面KittiesCount存储项的getter函数
-		// 	let kitty_id = match Self::kitties_count() {
-		// 		Some(id) => {
-		// 			// 如果当前kittyId的id已经超过了KittyIndex的最大值(u32最大值)，说明就无法再创建新的Index，就报溢出错误
-		// 			ensure!(id != KittyIndex::max_value(), Error::<T>::KittiesCountOverflow);
-		// 			// 否则就从当前id开始
-		// 			id
-		// 		},
-		// 		// 如果没有获取到，就从1开始
-		// 		None => 1,
-		// 	};
-		//     kitty_id
-		// }
+		// 更新kitty_babies_list
+		fn push_kitty_babies_list(who: &T::AccountId, kitty_id: <T as Config>::KittyIndex) {
+			// 更新特定账户的 kittybabies 存储
+			if KittyBabies::<T>::contains_key(&who.clone()) {
+				let mut babies = KittyBabies::<T>::get(who.clone());
+				babies.push(kitty_id);
+				KittyBabies::<T>::insert(&who.clone(), babies);
+			} else {
+				let mut babies: Vec<<T as Config>::KittyIndex> = [].to_vec();
+				babies.push(kitty_id);
+				KittyBabies::<T>::insert(&who.clone(), babies);
+			}
+		}
+
+		// 从kitty_babies_list中移除指定的kitty_id
+		fn remove_kittyid_from_kitty_babies_list(who: &T::AccountId, kitty_id: <T as Config>::KittyIndex){
+			let mut babies = KittyBabies::<T>::get(who.clone());
+			// 遍历kitty_babies_list,找到kitty_id的下标，通过下标移除该kitty_id
+			for (index, val) in babies.clone().iter().enumerate(){
+				if val == &kitty_id{
+					babies.swap_remove(index);
+				}
+			}
+			KittyBabies::<T>::insert(&who.clone(),babies);
+		}
+
+		// 查询当前账户在kittiy_market中的kitty信息(kittyid,price)
+		pub fn query_kittiy_market_info() -> GetKittyMarketResult<<T as frame_system::Config>::AccountId, BalanceOf<T>>{
+			log::info!("..............................");
+			log::info!(">>>>>>>>>>>>>>>>>>>>>>> start query kittiy market info <<<<<<<<<<<<<<<<<<<<<<<<<<<");
+			
+			let mut market_info: Vec<KittyInfoById<T::AccountId, BalanceOf<T>>> = [].to_vec();
+			//
+			//TODO: 有一个bug,如果这里没有获取到kitty的数量，如果为None这里就不可以进行unwrap，所以这里需要进行一下错误处理
+			// 所以还需要设置一种情况：如果当前链上没有kitty,此时抛出一个None，就返回一个Error，表示没有kitty
+			//
+			let mut count = KittiesCount::<T>::get().unwrap();
+			// 将kittyIndex自定义类型转换为u64,得到kitty的数量
+			let numbers = count.saturated_into::<u64>();
+
+			log::info!("kitty数量为：{}",&numbers.clone());
+
+			// 设置一个计数器
+			let mut counter = numbers as i64;
+			//这里按照kittyIndex进行倒序遍历
+			while counter > 0 {
+				// let mut num = KittiesCount::<T>::get().unwrap();
+				counter = counter - 1;
+				log::info!("当前计数为:{}",counter.clone());
+				// 当前这个count就是kitty_id
+				count = count - One::one();
+				// 如果当前遍历的kittyid在market中可以查找到
+				if KittyMarket::<T>::get(count) == Zero::zero(){
+					log::info!("当前kittyid:{}的价格为:{:?},不在挂单市场",count.saturated_into::<u64>(),KittyMarket::<T>::get(count));
+					continue;
+				}else {
+					log::info!("----开始查询market中的kitty信息-----");
+					log::info!("当前kitty id为:{}", count.saturated_into::<u64>());
+					// 查找当前kitty_id的price和owner
+					let price:	BalanceOf<T> = KittyMarket::<T>::get(count);
+					log::info!("当前kitty的价格为:{:?}",price.clone());
+					let owner = Owner::<T>::get(count).unwrap();
+					log::info!("当前kitty的主人为:{:?}",owner.clone());
+					// let owner = Owner::<T>::get(kitty_id).unwrap();
+					// Result<Vec<KittyInfoById<AccountId, Balance>>, MarketKittyqueryError>
+					market_info.push(
+						KittyInfoById{
+							kitty_index: count.saturated_into::<u64>(),
+							info: KittyInfo{
+								owner,
+								price,
+							}
+						}
+					);
+				}
+			}
+			log::info!("当前market_info列表为:{:?}",market_info);
+			log::info!("..............................");
+			log::info!(">>>>>>>>>>>>>>>>>>>>>>> End query kittiy market info <<<<<<<<<<<<<<<<<<<<<<<<<<<");
+			market_info
+
+		}
+
+		// 查询某个账户在market中的kitty信息
+			/* let mut kittyid_list = KittyBabies::get(who.clone());
+			kittyid_list.reverse();  */
+			/* 
+			// 倒序遍历
+			for i in 0..kittyid_list.clone().len(){
+				if let Some(kitty_id) = kittyid_list.clone().get(i){
+					let price =  KittyMarket::get(kitty_id);
+					// Result<Vec<BTreeMap<AccountId, Vec<KittiyMarketInfo<Balance>>>>, MarketKittyqueryError>;
+					let mut kitty_market_info: Vec<KittiyMarketInfo> = [].to_vec();
+					kitty_market_info.push(
+						KittiyMarketInfo{
+							kitty_id,
+							price,
+						}
+					);
+				}
+			} */
 	}
 }

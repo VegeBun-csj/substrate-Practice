@@ -43,6 +43,9 @@ std = [
     'pallet-timestamp/std',
     'pallet-transaction-payment-rpc-runtime-api/std',
     'pallet-transaction-payment/std',
+    'pallet-kitties/std',
+    'pallet-kitties-rpc-runtime-api/std',
+    # 'pallet-kitties-primitives/std',
     'sp-api/std',
     'sp-block-builder/std',
     'sp-consensus-aura/std',
@@ -138,7 +141,6 @@ default-features = false
 path = '../pallets/template'
 version = '3.0.0'
 
-
 [dependencies.pallet-poe]
 default-features = false
 path = '../pallets/poe'
@@ -149,6 +151,17 @@ default-features = false
 path = '../pallets/kitties'
 version = '3.0.0'
 
+#添加pallet-kitties-rpc-runtime-api依赖
+[dependencies.pallet-kitties-rpc-runtime-api]
+default-features = false
+path = "../pallets/kitties/rpc/runtime-api"
+version = "3.0.0"
+
+#添加kitties primitives
+# [dependencies.pallet-kitties-primitives]
+# default-features = false
+# path = "../pallets/kitties/common"
+# version = "3.0.0"
 
 [dependencies.pallet-timestamp]
 default-features = false

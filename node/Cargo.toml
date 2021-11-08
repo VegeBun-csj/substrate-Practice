@@ -43,6 +43,11 @@ git = 'https://github.com/paritytech/substrate.git'
 tag = 'monthly-2021-07'
 version = '3.0.0'
 
+# 引入pallet-kitties-rpc
+[dependencies.pallet-kitties-rpc]
+path = "../pallets/kitties/rpc/"
+version = "3.0.0"
+
 [dependencies.sc-basic-authorship]
 git = 'https://github.com/paritytech/substrate.git'
 tag = 'monthly-2021-07'
