@@ -43,9 +43,7 @@ std = [
     'sp-runtime/std',
     'pallet-balances/std',
     'pallet-randomness-collective-flip/std',
-    # 'pallet-kitties-primitives/std',
     'sp-std/std',
-    # 'sp_core/std',
     "serde",
 ]
 try-runtime = ['frame-support/try-runtime']

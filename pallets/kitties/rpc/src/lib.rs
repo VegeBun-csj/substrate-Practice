@@ -122,6 +122,7 @@ where
 							info: KittyInfo{
 								owner: kitty_info_byid.info.owner,
 								price: try_into_rpc_balance(kitty_info_byid.info.price).unwrap(),
+								kitty_dna: kitty_info_byid.info.kitty_dna,
 							},
 					})
 					.collect::<Vec<_>>()

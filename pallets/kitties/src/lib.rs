@@ -1,6 +1,6 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
-mod rpc;
+mod types;
 
 #[cfg(test)]
 mod mock;
@@ -11,7 +11,7 @@ pub use pallet::*;
 
 #[frame_support::pallet]
 pub mod pallet {
-	use codec::{Decode, Encode};
+	use codec::Encode;
 	use frame_support::{
 		dispatch::{fmt::Debug, Codec, DispatchResult},
 		pallet_prelude::*,
@@ -24,22 +24,11 @@ pub mod pallet {
 	use frame_system::pallet_prelude::*;
 	use sp_runtime::traits::{AtLeast32BitUnsigned, Bounded, One, Zero, SaturatedConversion};
 	use sp_std::{prelude::*, vec::Vec};
-/* 	use sp_io::logging::{log};
-	use sp_core::LogLevel; */
-	pub use crate::rpc::{GetKittyMarketResult, KittyInfoById, KittyInfo, MarketKittyqueryError};
+
+	pub use crate::types::{GetKittyMarketResult, KittyInfoById, KittyInfo, MarketKittyqueryError, Kitty};
 
 	pub type BalanceOf<T> =
 		<<T as Config>::Currency as Currency<<T as frame_system::Config>::AccountId>>::Balance;
-
-	/// 首先定义存储的数据ContractAccessError类型
-	/// 1.每一个kitty都需要存放数据，那么这个数据就可以用一个vec存放，为了存储方便，定义一个16字节的u8类型
-	/// 这样这些数据就可以通过256位的hash函数来获取
-	#[derive(Encode, Decode)]
-	pub struct Kitty(pub [u8; 16]);
-
-	/// 2.在存放kitty的时候，为了辨别，需要一个id,定义为一个u32类型
-	/// kittyIndex可以在runtime中定义，这样其他模块在使用这个pallet的时候，就可以自定义kittyIndex的类型，可以实现功能复用
-	// type KittyIndex = u32;
 
 	#[pallet::config]
 	pub trait Config: frame_system::Config {
@@ -401,6 +390,8 @@ pub mod pallet {
 					log::info!("当前kitty的价格为:{:?}",price.clone());
 					let owner = Owner::<T>::get(count).unwrap();
 					log::info!("当前kitty的主人为:{:?}",owner.clone());
+					let kitty_dna = Kitties::<T>::get(count).unwrap();
+					log::info!("当前kitty的dna为:{:?}",kitty_dna);
 					// let owner = Owner::<T>::get(kitty_id).unwrap();
 					// Result<Vec<KittyInfoById<AccountId, Balance>>, MarketKittyqueryError>
 					market_info.push(
@@ -409,6 +400,7 @@ pub mod pallet {
 							info: KittyInfo{
 								owner,
 								price,
+								kitty_dna,
 							}
 						}
 					);
