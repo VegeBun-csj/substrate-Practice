@@ -15,11 +15,10 @@ use sp_blockchain::HeaderBackend;
 use sp_rpc::number::NumberOrHex;
 use sp_runtime::{
 	generic::BlockId,
-	traits::{Block as BlockT, Header as HeaderT, MaybeDisplay, MaybeFromStr},
+	traits::{Block as BlockT},
 };
 
 use std::fmt::Display;
-use std::str::FromStr;
 /// std相关
 use std::{convert::TryInto, sync::Arc};
 //
@@ -34,16 +33,11 @@ impl From<MarketKittyqueryError> for Error {
 	fn from(e: MarketKittyqueryError) -> Error {
 		use pallet_kitties::MarketKittyqueryError::*;
 		match e.0 {
-			DoesentExistOwner => Error {
+			DoNotExistKitty => Error {
 				code: ErrorCode::ServerError(Errors::DecodeError.into()),
-				message: "The specified Owner doesn't exist !!".into(),
+				message: "no kitty exist on tha chain ,please create a kitty~~~~".into(),
 				data: None,
 			},
-			/* DONotExistKittyOnChain => Error {
-			 * code: ErrorCode::ServerError(Errors::DecodeError.into()),
-			 * message: "no kitty exist on tha chain ,please create a kitty~~~~".into(),
-			 * data: None,
-			 * }, */
 		}
 	}
 }
@@ -51,14 +45,12 @@ impl From<MarketKittyqueryError> for Error {
 /// 定义Kitties的RPC方法
 #[rpc]
 pub trait KittiesApi<BlockHash, AccountId, Balance>
-// where 
-	// Balance: Display + FromStr,
 {
 	#[rpc(name = "kitty_querykittiymarketinfo")]
 	fn query_kittiy_market_info(
 		&self,
 		at: Option<BlockHash>,
-	) -> Result<GetKittyMarketResult<AccountId, NumberOrHex>>;
+	) -> Result<GetKittyMarketResult<AccountId, NumberOrHex>, >;
 }
 
 /// 定义一个结构体，用于实现KittiesApi这个trait

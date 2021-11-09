@@ -347,7 +347,7 @@ pub type Executive = frame_executive::Executive<
 	AllPallets,
 >;
 
-/// 将各个rpc api组装到runtime
+// 将各个rpc api组装到runtime
 impl_runtime_apis! {
 	impl sp_api::Core<Block> for Runtime {
 		fn version() -> RuntimeVersion {

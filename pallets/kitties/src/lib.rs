@@ -374,9 +374,6 @@ pub mod pallet {
 			
 			let mut market_info: Vec<KittyInfoById<T::AccountId, BalanceOf<T>>> = [].to_vec();
 			//
-			//TODO: 有一个bug,如果这里没有获取到kitty的数量，如果为None这里就不可以进行unwrap，所以这里需要进行一下错误处理
-			// 所以还需要设置一种情况：如果当前链上没有kitty,此时抛出一个None，就返回一个Error，表示没有kitty
-			//
 			let mut count = KittiesCount::<T>::get().unwrap();
 			// 将kittyIndex自定义类型转换为u64,得到kitty的数量
 			let numbers = count.saturated_into::<u64>();

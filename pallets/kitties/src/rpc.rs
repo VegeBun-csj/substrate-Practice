@@ -26,15 +26,13 @@ pub type KittyIndex = u64;
 /// 
 /// -
 pub type GetKittyMarketResult<AccountId, Balance> = 
-	// Result<Vec<KittyInfoById<AccountId, Balance>>, MarketKittyqueryError>;
 	Vec<KittyInfoById<AccountId, Balance>>;
 
 #[derive(Eq, PartialEq, Encode, Decode, RuntimeDebug)]
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "std", serde(rename_all = "camelCase"))]	
 pub enum MarketKittyqueryError{
-	DoesentExistOwner,
-	// DONotExistKittyOnChain,
+	DoNotExistKitty,
 }
 
 
